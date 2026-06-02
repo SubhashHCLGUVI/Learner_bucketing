@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LSIP Lite | Learner Success Intelligence Platform</title>
+    
+    <!-- Scripts -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        brand: { 50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 900: '#1e3a8a' },
+                        surface: { light: '#ffffff', dark: '#1e293b' },
+                        bg: { light: '#f8fafc', dark: '#0f172a' }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Custom CSS -->
+    <style>
+        body { font-family: 'Inter', sans-serif; transition: background-color 0.3s, color 0.3s; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+        
+        /* Glassmorphism */
+        .glass { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); }
+        .dark .glass { background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255, 255, 255, 0.05); }
+        
+        /* Animations */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        
+        @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-10px); } }
+        
+        /* Toast Notifications */
+        #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+        .toast { pointer-events: auto; background: white; padding: 12px 20px; border-radius: 8px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); border-left: 4px solid #3b82f6; display: flex; align-items: center; gap: 12px; font-size: 14px; font-weight: 500; animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1); transition: all 0.3s; }
+        .dark .toast { background: #1e293b; color: #f8fafc; border-left-color: #3b82f6; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5); }
+        .toast.success { border-left-color: #10b981; } .toast.success i { color: #10b981; }
+        .toast.error { border-left-color: #ef4444; } .toast.error i { color: #ef4444; }
+        .toast.warning { border-left-color: #f59e0b; } .toast.warning i { color: #f59e0b; }
+        .toast.closing { animation: fadeOut 0.3s forwards; }
+
+        table { border-collapse: separate; border-spacing: 0; width: 100%; }
+        th { position: sticky; top: 0; z-index: 10; backdrop-filter: blur(8px); }
+        .loader { border: 3px solid #f3f3f3; border-radius: 50%; border-top: 3px solid #3b82f6; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .hide { display: none !important; }
+        .tab-active { background-color: #eff6ff; color: #2563eb; font-weight: 600; border-right: 3px solid #2563eb; }
+        .dark .tab-active { background-color: #0f172a; color: #60a5fa; border-right-color: #60a5fa; }
+    </style>
+</head>
+<body class="bg-bg-light dark:bg-bg-dark text-slate-800 dark:text-slate-200 h-screen overflow-hidden flex">
+
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
+    <!-- Sidebar -->
+    <aside class="w-64 glass shadow-lg flex flex-col h-full z-20 transition-all duration-300">
+        <div class="p-6 flex items-center gap-3 border-b border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-900/50">
+            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold shadow-md">L</div>
+            <h1 class="text-xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">LSIP Lite</h1>
+        </div>
+        
+        <nav class="flex-1 overflow-y-auto py-4">
+            <ul class="space-y-1 px-3" id="nav-menu">
+                <li><button onclick="app.switchView('upload')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors tab-active" data-target="upload"><i class="fas fa-database w-5"></i> Data & Files</button></li>
+                <li><button onclick="app.switchView('dashboard')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors pointer-events-none opacity-50" data-target="dashboard" id="nav-dashboard"><i class="fas fa-chart-line w-5"></i> Dashboard</button></li>
+                <li><button onclick="app.switchView('action-center')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors pointer-events-none opacity-50" data-target="action-center" id="nav-action"><i class="fas fa-exclamation-triangle w-5"></i> Action Center</button></li>
+                <li><button onclick="app.switchView('batch-health')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors pointer-events-none opacity-50" data-target="batch-health" id="nav-batch"><i class="fas fa-layer-group w-5"></i> Batch Health</button></li>
+                <li><button onclick="app.switchView('queries')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors pointer-events-none opacity-50" data-target="queries" id="nav-queries"><i class="fas fa-comments w-5"></i> Query Analytics</button></li>
+                <li><button onclick="app.switchView('learners')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors pointer-events-none opacity-50" data-target="learners" id="nav-learners"><i class="fas fa-users w-5"></i> Learner Search</button></li>
+                <li><button onclick="app.switchView('data-quality')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors pointer-events-none opacity-50" data-target="data-quality" id="nav-quality"><i class="fas fa-shield-alt w-5"></i> Data Quality</button></li>
+            </ul>
+        </nav>
+
+        <div class="p-4 border-t border-slate-200 dark:border-slate-700 text-xs text-center text-slate-500 bg-white/50 dark:bg-slate-900/50">
+            Manager Demo Version<br>&copy; 2026 Internal Use
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col h-full overflow-hidden relative">
+        <header class="h-16 glass z-10 px-6 flex items-center justify-between border-b border-slate-200 dark:border-slate-700">
+            <div class="flex items-center gap-4">
+                <h2 id="page-title" class="text-lg font-semibold text-slate-800 dark:text-white">Data & Files Management</h2>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="app.exportManagerSummary()" id="export-btn" class="hide bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 flex items-center gap-2">
+                    <i class="fas fa-file-excel"></i> Export Full Manager Report
+                </button>
+                <button onclick="app.toggleTheme()" class="w-10 h-10 rounded-full glass flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors text-slate-600 dark:text-slate-300">
+                    <i id="theme-icon" class="fas fa-moon"></i>
+                </button>
+            </div>
+        </header>
+
+        <div class="flex-1 overflow-y-auto p-6 scroll-smooth" id="main-scroll">
+            
+            <!-- UPLOAD & FILE MANAGER VIEW -->
+            <div id="view-upload" class="max-w-5xl mx-auto space-y-8 animate-fade-in pb-10">
+                <div class="text-center mt-4">
+                    <h2 class="text-3xl font-bold mb-2">System Database</h2>
+                    <p class="text-slate-500 dark:text-slate-400">Upload Excel files or manage existing datasets. Data is securely saved locally in your browser.</p>
+                </div>
+
+                <div id="db-status-banner" class="glass rounded-xl p-5 flex flex-col md:flex-row items-center justify-between border-l-4 border-blue-500 shadow-sm hide gap-4">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xl shadow-inner"><i class="fas fa-check"></i></div>
+                        <div>
+                            <h3 class="font-bold text-lg text-slate-800 dark:text-slate-100">Active Database Found</h3>
+                            <p class="text-sm text-slate-500 dark:text-slate-400" id="db-status-text">Loaded 0 records from previous session.</p>
+                        </div>
+                    </div>
+                    <button onclick="app.processData()" class="bg-blue-600 text-white px-6 py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-700 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all w-full md:w-auto text-center">Process & Open Dashboard <i class="fas fa-arrow-right ml-2"></i></button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="glass rounded-xl p-8 border-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-blue-500 dark:hover:border-blue-400 transition-colors text-center relative group bg-surface-light dark:bg-surface-dark cursor-pointer">
+                        <input type="file" id="batch-upload" multiple accept=".xlsx,.xls,.csv" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" onchange="app.handleFileUpload(event, 'batch')">
+                        <div class="flex flex-col items-center gap-3 transform group-hover:scale-105 transition-transform duration-300">
+                            <div class="w-16 h-16 rounded-full bg-blue-50 dark:bg-slate-800 flex items-center justify-center text-blue-600 dark:text-blue-400 shadow-sm"><i class="fas fa-file-excel text-2xl"></i></div>
+                            <div>
+                                <h3 class="font-bold text-lg">Import Batch Reports</h3>
+                                <p class="text-sm text-slate-500 mt-1">Drop files here or click to browse</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="glass rounded-xl p-8 border-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-purple-500 dark:hover:border-purple-400 transition-colors text-center relative group bg-surface-light dark:bg-surface-dark cursor-pointer">
+                        <input type="file" id="query-upload" multiple accept=".xlsx,.xls,.csv" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" onchange="app.handleFileUpload(event, 'query')">
+                        <div class="flex flex-col items-center gap-3 transform group-hover:scale-105 transition-transform duration-300">
+                            <div class="w-16 h-16 rounded-full bg-purple-50 dark:bg-slate-800 flex items-center justify-center text-purple-600 dark:text-purple-400 shadow-sm"><i class="fas fa-comments text-2xl"></i></div>
+                            <div>
+                                <h3 class="font-bold text-lg">Import Query Reports</h3>
+                                <p class="text-sm text-slate-500 mt-1">Drop files here or click to browse</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="upload-loader" class="hide flex flex-col items-center justify-center p-6 glass rounded-xl">
+                    <div class="loader mb-3"></div>
+                    <p class="text-sm font-bold animate-pulse text-blue-600 dark:text-blue-400">Extracting and Securing Data...</p>
+                </div>
+
+                <div class="glass rounded-xl shadow-sm overflow-hidden flex flex-col mt-8">
+                    <div class="p-5 border-b border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/80 flex justify-between items-center">
+                        <h3 class="font-bold text-slate-800 dark:text-white"><i class="fas fa-server mr-2 text-blue-500"></i>Stored Datasets</h3>
+                        <button onclick="app.clearDatabase()" class="text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/30 dark:hover:bg-red-900/50 px-4 py-2 rounded-lg transition-colors border border-red-200 dark:border-red-800 shadow-sm"><i class="fas fa-trash-alt mr-1"></i> Wipe Database</button>
+                    </div>
+                    <div class="flex-1 overflow-auto max-h-72">
+                        <table class="w-full text-sm text-left">
+                            <thead class="text-xs uppercase bg-white dark:bg-slate-900 text-slate-500 sticky top-0 shadow-sm">
+                                <tr><th class="px-5 py-3">Filename</th><th class="px-5 py-3">Dataset Type</th><th class="px-5 py-3 text-right">Actions</th></tr>
+                            </thead>
+                            <tbody id="file-manager-body" class="divide-y divide-slate-100 dark:divide-slate-700/50 bg-white/30 dark:bg-slate-900/30">
+                                <tr><td colspan="3" class="px-5 py-8 text-center text-slate-400 italic">No datasets secured in local storage. Upload files above.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DASHBOARD VIEW -->
+            <div id="view-dashboard" class="hide space-y-6 animate-fade-in pb-10">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="kpi-container"></div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="glass rounded-xl p-5 shadow-sm flex flex-col hover:shadow-md transition-shadow"><h3 class="font-bold text-sm mb-4 text-slate-700 dark:text-slate-200">Placement Readiness</h3><div class="relative flex-1 min-h-[220px]"><canvas id="chart-placement"></canvas></div></div>
+                    <div class="glass rounded-xl p-5 shadow-sm flex flex-col hover:shadow-md transition-shadow"><h3 class="font-bold text-sm mb-4 text-slate-700 dark:text-slate-200">Learner Segmentation</h3><div class="relative flex-1 min-h-[220px]"><canvas id="chart-segmentation"></canvas></div></div>
+                    <div class="glass rounded-xl p-5 shadow-sm flex flex-col hover:shadow-md transition-shadow"><h3 class="font-bold text-sm mb-4 text-slate-700 dark:text-slate-200">Program Distribution</h3><div class="relative flex-1 min-h-[220px]"><canvas id="chart-program-dist"></canvas></div></div>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="glass rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow"><h3 class="font-bold text-sm mb-4 text-slate-700 dark:text-slate-200">Attendance vs. Completion Correlation</h3><p class="text-xs text-slate-500 mb-4 -mt-2">Scatter plot of every learner. Identifies if low attendance impacts outcomes.</p><div class="relative h-72"><canvas id="chart-attendance-scatter"></canvas></div></div>
+                    <div class="glass rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow"><h3 class="font-bold text-sm mb-4 text-slate-700 dark:text-slate-200">Batch Completion Rates (Top 10)</h3><div class="relative h-72 mt-2"><canvas id="chart-batch-completion"></canvas></div></div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="glass rounded-xl p-0 shadow-sm overflow-hidden flex flex-col h-96 hover:shadow-md transition-shadow border border-slate-200 dark:border-slate-700">
+                        <div class="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80"><h3 class="font-bold text-sm text-slate-700 dark:text-slate-200"><i class="fas fa-rocket text-teal-500 mr-2"></i>Top 20 Near Completion</h3></div>
+                        <div class="flex-1 overflow-auto p-0"><table class="w-full text-sm text-left"><tbody id="table-near-completion" class="divide-y divide-slate-100 dark:divide-slate-700/50"></tbody></table></div>
+                    </div>
+                    <div class="glass rounded-xl p-0 shadow-sm overflow-hidden flex flex-col h-96 hover:shadow-md transition-shadow border border-red-100 dark:border-red-900/30">
+                        <div class="p-4 border-b border-slate-200 dark:border-slate-700 bg-red-50/50 dark:bg-red-900/10 flex justify-between items-center">
+                            <h3 class="font-bold text-sm text-red-600 dark:text-red-400"><i class="fas fa-exclamation-circle mr-2"></i>At Risk (Batch-Wise Filter)</h3>
+                            <select id="risk-batch-select" onchange="app.renderBatchRiskTable(this.value)" class="text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 rounded-md px-3 py-1.5 shadow-sm focus:ring-2 focus:ring-red-500 focus:outline-none cursor-pointer"></select>
+                        </div>
+                        <div class="flex-1 overflow-auto p-0"><table class="w-full text-sm text-left"><tbody id="table-at-risk" class="divide-y divide-slate-100 dark:divide-slate-700/50"></tbody></table></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ACTION CENTER VIEW -->
+            <div id="view-action-center" class="hide space-y-6 animate-fade-in pb-10">
+                <div class="flex justify-between items-center bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 p-5 rounded-xl border border-red-100 dark:border-red-800 shadow-sm">
+                    <div>
+                        <h2 class="text-xl font-bold text-red-700 dark:text-red-400">Intervention Required</h2>
+                        <p class="text-sm text-red-600 dark:text-red-300 mt-1 font-medium">Learners automatically flagged by system algorithms based on metrics.</p>
+                    </div>
+                    <button onclick="app.exportTable('actionTable', 'Action_Center')" class="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 px-4 py-2 rounded-lg shadow-sm text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2"><i class="fas fa-download text-slate-400"></i> Export List</button>
+                </div>
+                <div class="glass rounded-xl shadow-sm overflow-hidden border border-slate-200 dark:border-slate-700">
+                    <div class="overflow-x-auto max-h-[650px]">
+                        <table id="actionTable" class="w-full text-sm text-left">
+                            <thead class="text-xs uppercase bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 sticky top-0 z-10 shadow-sm">
+                                <tr><th class="px-5 py-4">Learner Profile</th><th class="px-5 py-4">Batch</th><th class="px-5 py-4">Priority Level</th><th class="px-5 py-4">System Diagnosis</th><th class="px-5 py-4 text-right">Actions</th></tr>
+                            </thead>
+                            <tbody id="tbody-action-center" class="divide-y divide-slate-100 dark:divide-slate-700/50 bg-white/50 dark:bg-slate-900/50"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BATCH HEALTH VIEW -->
+            <div id="view-batch-health" class="hide space-y-6 animate-fade-in pb-10">
+                <div class="flex justify-between items-center bg-white/50 dark:bg-slate-800/50 p-4 rounded-xl glass">
+                    <p class="text-sm font-medium text-slate-600 dark:text-slate-300">Macro-level overview of cohort performance.</p>
+                    <button onclick="app.exportTable('batchTable', 'Batch_Health')" class="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 px-4 py-2 rounded-lg shadow-sm text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2"><i class="fas fa-download text-slate-400"></i> Export Data</button>
+                </div>
+                <div class="glass rounded-xl shadow-sm overflow-hidden border border-slate-200 dark:border-slate-700">
+                    <div class="overflow-x-auto max-h-[700px]">
+                        <table id="batchTable" class="w-full text-sm text-left">
+                            <thead class="text-xs uppercase bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 sticky top-0 z-10 shadow-sm">
+                                <tr>
+                                    <th class="px-5 py-4">Batch Name</th><th class="px-5 py-4 text-center">Total Learners</th>
+                                    <th class="px-5 py-4 text-center">Avg Completion</th><th class="px-5 py-4 text-center">Avg Attendance</th>
+                                    <th class="px-5 py-4 text-center">Avg CodeKata</th><th class="px-5 py-4 text-center">Placement Ready</th>
+                                    <th class="px-5 py-4 text-center">At Risk (Critical)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-batch-health" class="divide-y divide-slate-100 dark:divide-slate-700/50 bg-white/50 dark:bg-slate-900/50"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- QUERY ANALYTICS VIEW -->
+            <div id="view-queries" class="hide space-y-6 animate-fade-in pb-10">
+                 
+                 <!-- Mentor Query Filter Bar -->
+                 <div class="glass p-4 rounded-xl flex flex-col md:flex-row justify-between items-center sticky top-0 z-20 shadow-sm border border-slate-200 dark:border-slate-700 gap-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md">
+                     <div class="flex items-center gap-3 w-full md:w-auto">
+                         <span class="font-bold text-sm text-slate-700 dark:text-slate-200"><i class="fas fa-filter text-purple-500 mr-2"></i>Filter Mentor:</span>
+                         <select id="query-mentor-select" onchange="app.renderQueryView(this.value)" class="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-sm rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer flex-1 md:w-64">
+                             <option value="ALL">All Mentors (Global View)</option>
+                         </select>
+                     </div>
+                     <button onclick="app.renderQueryView('Subhash Govindharaj')" class="w-full md:w-auto bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-bold shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2">
+                         <i class="fas fa-user-astronaut"></i> My Queries (Subhash)
+                     </button>
+                 </div>
+
+                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="query-kpi-container"></div>
+                 
+                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="glass rounded-xl p-5 flex flex-col h-96 shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md transition-shadow">
+                        <h3 class="font-bold text-sm mb-4 text-slate-700 dark:text-slate-200">Query Category Distribution</h3>
+                        <div class="relative flex-1"><canvas id="chart-query-category"></canvas></div>
+                    </div>
+                    <div class="glass rounded-xl p-5 flex flex-col h-96 shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md transition-shadow">
+                        <h3 class="font-bold text-sm mb-1 text-slate-700 dark:text-slate-200">Mentor Workload (Top 10)</h3>
+                        <p class="text-xs text-slate-500 mb-4">Total queries handled per assigned mentor.</p>
+                        <div class="relative flex-1"><canvas id="chart-mentor-load"></canvas></div>
+                    </div>
+                 </div>
+
+                 <div class="glass rounded-xl overflow-hidden flex flex-col shadow-sm border border-slate-200 dark:border-slate-700 mt-6">
+                    <div class="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80">
+                        <h3 class="font-bold text-sm text-slate-700 dark:text-slate-200"><i class="fas fa-headset text-purple-500 mr-2"></i>Top 50 Query Raisers (Based on Filter)</h3>
+                    </div>
+                    <div class="flex-1 overflow-auto max-h-96 p-0">
+                        <table class="w-full text-sm text-left">
+                            <thead class="text-xs uppercase bg-white dark:bg-slate-900 text-slate-500 sticky top-0 shadow-sm">
+                                <tr><th class="px-5 py-3">Learner Profile</th><th class="px-5 py-3">Program</th><th class="px-5 py-3 text-right">Queries Raised</th></tr>
+                            </thead>
+                            <tbody id="table-top-queries" class="divide-y divide-slate-100 dark:divide-slate-700/50 bg-white/50 dark:bg-slate-900/50"></tbody>
+                        </table>
+                    </div>
+                 </div>
+            </div>
+
+            <!-- LEARNERS VIEW -->
+            <div id="view-learners" class="hide space-y-4 animate-fade-in pb-10">
+                <div class="glass p-4 rounded-xl flex flex-col md:flex-row gap-4 items-center sticky top-0 z-20 shadow-sm border border-slate-200 dark:border-slate-700">
+                    <div class="relative flex-1 w-full">
+                        <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                        <input type="text" id="search-input" onkeyup="app.filterLearners()" placeholder="Search by any Name or Email across all datasets..." class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg pl-11 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm shadow-sm transition-shadow">
+                        <span id="search-counter" class="absolute right-4 top-1/2 transform -translate-y-1/2 text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded"></span>
+                    </div>
+                    <div class="flex gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
+                        <select id="filter-program" onchange="app.filterLearners()" class="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-sm rounded-lg px-3 py-2.5 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer min-w-[140px]"><option value="ALL">All Programs</option></select>
+                        <select id="filter-batch" onchange="app.filterLearners()" class="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-sm rounded-lg px-3 py-2.5 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer min-w-[140px]"><option value="ALL">All Batches</option></select>
+                        <select id="filter-segment" onchange="app.filterLearners()" class="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-sm rounded-lg px-3 py-2.5 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer min-w-[140px]"><option value="ALL">All Segments</option></select>
+                        <button onclick="app.exportTable('learnerTable', 'Learner_Search_Results')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg shadow-sm text-sm font-semibold transition-colors flex items-center gap-2 whitespace-nowrap"><i class="fas fa-download"></i> Export Displayed</button>
+                    </div>
+                </div>
+
+                <div class="glass rounded-xl shadow-sm overflow-hidden border border-slate-200 dark:border-slate-700">
+                    <div class="overflow-x-auto h-[650px] relative">
+                        <table id="learnerTable" class="w-full text-sm text-left">
+                            <thead class="text-xs uppercase bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 sticky top-0 z-10 shadow-sm">
+                                <tr>
+                                    <th class="px-5 py-4">Learner Details</th>
+                                    <th class="px-5 py-4">Program / Batch</th>
+                                    <th class="px-5 py-4">System Segment</th>
+                                    <th class="px-5 py-4 text-center">Avg Completion</th>
+                                    <th class="px-5 py-4 text-center">CodeKata / WebKata</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-learners" class="divide-y divide-slate-100 dark:divide-slate-700/50 bg-white/50 dark:bg-slate-900/50"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DATA QUALITY VIEW -->
+            <div id="view-data-quality" class="hide space-y-6 animate-fade-in pb-10">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="glass p-5 rounded-xl text-center border-t-4 border-blue-500 shadow-sm"><p class="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1">Files Processed</p><h3 class="text-3xl font-black text-slate-800 dark:text-white" id="dq-files">0</h3></div>
+                    <div class="glass p-5 rounded-xl text-center border-t-4 border-emerald-500 shadow-sm"><p class="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1">Unique Learners</p><h3 class="text-3xl font-black text-slate-800 dark:text-white" id="dq-learners">0</h3></div>
+                    <div class="glass p-5 rounded-xl text-center border-t-4 border-purple-500 shadow-sm"><p class="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1">Active Programs</p><h3 class="text-3xl font-black text-slate-800 dark:text-white" id="dq-programs">0</h3></div>
+                    <div class="glass p-5 rounded-xl text-center border-t-4 border-amber-500 shadow-sm"><p class="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1">Duplicates Merged</p><h3 class="text-3xl font-black text-slate-800 dark:text-white" id="dq-duplicates">0</h3></div>
+                </div>
+                <div class="glass rounded-xl overflow-hidden flex flex-col max-h-[500px] shadow-sm border border-slate-200 dark:border-slate-700">
+                    <div class="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800">
+                        <h3 class="font-bold text-sm text-slate-700 dark:text-slate-200"><i class="fas fa-terminal mr-2 text-slate-400"></i>System Execution Log</h3>
+                        <button onclick="app.downloadErrorLog()" class="text-xs font-semibold bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 px-3 py-1.5 rounded-lg shadow-sm hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors flex items-center gap-1"><i class="fas fa-download"></i> Download Log</button>
+                    </div>
+                    <div class="flex-1 overflow-auto p-4 bg-slate-900 text-slate-300 font-mono text-[11px] leading-relaxed space-y-1" id="error-log-container"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Learner 360 Modal -->
+    <div id="modal-360" class="fixed inset-0 z-50 flex items-center justify-center hide opacity-0 transition-opacity duration-300">
+        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onclick="app.closeModal()"></div>
+        <div class="relative w-full max-w-3xl glass bg-surface-light dark:bg-surface-dark rounded-2xl shadow-2xl overflow-hidden flex flex-col transform scale-95 transition-transform duration-300 mx-4 border border-slate-200 dark:border-slate-700" id="modal-content-box">
+            <div class="p-6 border-b border-slate-200 dark:border-slate-700 flex justify-between items-start bg-slate-50/50 dark:bg-slate-800/50">
+                <div class="flex gap-4 items-center">
+                    <div class="w-16 h-16 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/40 dark:to-indigo-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 text-3xl font-black shadow-inner border border-blue-200 dark:border-blue-800" id="modal-avatar">A</div>
+                    <div>
+                        <h2 class="text-2xl font-black text-slate-800 dark:text-white tracking-tight" id="modal-name">Name</h2>
+                        <p class="text-sm font-medium text-slate-500 dark:text-slate-400" id="modal-email">email@example.com</p>
+                        <div class="flex gap-2 mt-2 flex-wrap">
+                            <span id="modal-segment" class="px-2.5 py-1 rounded text-xs font-bold text-white shadow-sm uppercase tracking-wide">Segment</span>
+                            <span id="modal-program" class="px-2.5 py-1 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-semibold shadow-sm">Program</span>
+                            <span id="modal-batch" class="px-2.5 py-1 rounded border border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-300 text-xs font-semibold shadow-sm">Batch</span>
+                        </div>
+                    </div>
+                </div>
+                <button onclick="app.closeModal()" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-6 overflow-y-auto space-y-6">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-center shadow-sm"><p class="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">Completion</p><h4 class="text-2xl font-black text-blue-600 dark:text-blue-400" id="modal-completion">0%</h4></div>
+                    <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-center shadow-sm"><p class="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">Attendance</p><h4 class="text-2xl font-black text-emerald-600 dark:text-emerald-400" id="modal-att">0%</h4></div>
+                    <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-center shadow-sm"><p class="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">Code / Web Kata</p><h4 class="text-xl font-black text-purple-600 dark:text-purple-400 mt-1"><span id="modal-ck">0</span> <span class="text-slate-300 font-normal mx-1">|</span> <span id="modal-wk">0</span></h4></div>
+                    <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-center shadow-sm"><p class="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">Global Queries</p><h4 class="text-2xl font-black text-amber-600 dark:text-amber-400" id="modal-queries">0</h4></div>
+                </div>
+                <div class="space-y-5 bg-slate-50 dark:bg-slate-800/50 p-5 rounded-xl border border-slate-100 dark:border-slate-700">
+                    <h3 class="text-sm font-bold text-slate-700 dark:text-slate-200 mb-2 border-b border-slate-200 dark:border-slate-700 pb-2">Progress Breakdown</h3>
+                    <div><div class="flex justify-between text-sm mb-1.5"><span class="font-semibold text-slate-600 dark:text-slate-300">Task Completion</span><span id="modal-task-val" class="font-bold">0%</span></div><div class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2.5 overflow-hidden"><div class="bg-blue-500 h-2.5 rounded-full transition-all duration-700 ease-out" id="modal-task-bar" style="width: 0%"></div></div></div>
+                    <div><div class="flex justify-between text-sm mb-1.5"><span class="font-semibold text-slate-600 dark:text-slate-300">Mini Project</span><span id="modal-mini-val" class="font-bold">0%</span></div><div class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2.5 overflow-hidden"><div class="bg-purple-500 h-2.5 rounded-full transition-all duration-700 ease-out delay-100" id="modal-mini-bar" style="width: 0%"></div></div></div>
+                    <div><div class="flex justify-between text-sm mb-1.5"><span class="font-semibold text-slate-600 dark:text-slate-300">Final Project</span><span id="modal-final-val" class="font-bold">0%</span></div><div class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2.5 overflow-hidden"><div class="bg-emerald-500 h-2.5 rounded-full transition-all duration-700 ease-out delay-200" id="modal-final-bar" style="width: 0%"></div></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Logic -->
+    <script>
+        // --- Dynamic Toast System ---
+        const Toast = {
+            show(msg, type = 'info') {
+                const container = document.getElementById('toast-container');
+                const toast = document.createElement('div');
+                let icon = 'fa-info-circle';
+                if(type === 'success') icon = 'fa-check-circle';
+                if(type === 'error') icon = 'fa-exclamation-triangle';
+                if(type === 'warning') icon = 'fa-exclamation-circle';
+
+                toast.className = `toast ${type}`;
+                toast.innerHTML = `<i class="fas ${icon} text-lg"></i><span>${msg}</span>`;
+                container.appendChild(toast);
+
+                setTimeout(() => {
+                    toast.classList.add('closing');
+                    setTimeout(() => toast.remove(), 300);
+                }, 3000);
+            }
+        };
+
+        // --- IndexedDB Persistent Storage Manager ---
+        const LocalDB = {
+            dbName: 'LSIP_Database', version: 1, db: null,
+            init() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(this.dbName, this.version);
+                    request.onupgradeneeded = (e) => {
+                        const database = e.target.result;
+                        if (!database.objectStoreNames.contains('files')) database.createObjectStore('files', { keyPath: 'filename' });
+                    };
+                    request.onsuccess = (e) => { this.db = e.target.result; resolve(); };
+                    request.onerror = (e) => reject('IndexedDB disabled.');
+                });
+            },
+            saveFile(filename, type, data) {
+                return new Promise((resolve) => {
+                    const tx = this.db.transaction('files', 'readwrite');
+                    tx.objectStore('files').put({ filename, type, data, timestamp: new Date().getTime() });
+                    tx.oncomplete = () => resolve();
+                });
+            },
+            getAllFiles() {
+                return new Promise((resolve) => {
+                    const tx = this.db.transaction('files', 'readonly');
+                    const req = tx.objectStore('files').getAll();
+                    req.onsuccess = () => resolve(req.result || []);
+                });
+            },
+            deleteFile(filename) {
+                return new Promise((resolve) => {
+                    const tx = this.db.transaction('files', 'readwrite');
+                    tx.objectStore('files').delete(filename);
+                    tx.oncomplete = () => resolve();
+                });
+            },
+            clearAll() {
+                return new Promise((resolve) => {
+                    const tx = this.db.transaction('files', 'readwrite');
+                    tx.objectStore('files').clear();
+                    tx.oncomplete = () => resolve();
+                });
+            }
+        };
+
+        // --- Main App Logic ---
+        const app = {
+            state: { rawBatches: [], rawQueries: [], storedFilesInfo: [], learners: {}, batches: {}, programs: {}, queryStats: { total: 0, open: 0, closed: 0, categories: {} }, metadata: { filesProcessed: 0, duplicates: 0, rows: 0 }, logs: [], charts: {}, isDarkMode: false },
+
+            async init() {
+                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                    this.state.isDarkMode = true;
+                    document.documentElement.classList.add('dark');
+                    document.getElementById('theme-icon').classList.replace('fa-moon', 'fa-sun');
+                }
+                Chart.defaults.color = this.state.isDarkMode ? '#94a3b8' : '#64748b';
+                Chart.defaults.font.family = "'Inter', sans-serif";
+
+                try {
+                    await LocalDB.init();
+                    this.log("Local IndexedDB Initialized.", "success");
+                    await this.loadFromDB();
+                } catch (e) {
+                    this.log("Database failed to load. Incognito mode?", "warn");
+                    Toast.show("Storage disabled. Running in memory only.", "warning");
+                }
+            },
+
+            async loadFromDB() {
+                const files = await LocalDB.getAllFiles();
+                this.state.rawBatches = []; this.state.rawQueries = []; this.state.storedFilesInfo = [];
+                files.forEach(f => {
+                    this.state.storedFilesInfo.push({ name: f.filename, type: f.type, rows: f.data.length });
+                    if (f.type === 'batch') this.state.rawBatches = this.state.rawBatches.concat(f.data);
+                    if (f.type === 'query') this.state.rawQueries = this.state.rawQueries.concat(f.data);
+                });
+                this.renderFileManager();
+
+                if (files.length > 0) {
+                    document.getElementById('db-status-banner').classList.remove('hide');
+                    document.getElementById('db-status-text').innerText = `Loaded ${files.length} datasets securely from browser storage.`;
+                    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('pointer-events-none', 'opacity-50'));
+                    document.getElementById('export-btn').classList.remove('hide');
+                } else {
+                    document.getElementById('db-status-banner').classList.add('hide');
+                }
+            },
+
+            // --- UI ---
+            toggleTheme() {
+                this.state.isDarkMode = !this.state.isDarkMode;
+                document.documentElement.classList.toggle('dark', this.state.isDarkMode);
+                document.getElementById('theme-icon').classList.replace(this.state.isDarkMode?'fa-moon':'fa-sun', this.state.isDarkMode?'fa-sun':'fa-moon');
+                Chart.defaults.color = this.state.isDarkMode ? '#94a3b8' : '#64748b';
+                if(Object.keys(this.state.charts).length > 0) {
+                    this.renderCharts();
+                    this.renderQueryView(document.getElementById('query-mentor-select')?.value || 'ALL');
+                }
+            },
+            
+            switchView(viewId) {
+                ['upload', 'dashboard', 'action-center', 'batch-health', 'queries', 'learners', 'data-quality'].forEach(v => document.getElementById(`view-${v}`).classList.add('hide'));
+                document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('tab-active'));
+                
+                document.getElementById(`view-${viewId}`).classList.remove('hide');
+                document.querySelector(`[data-target="${viewId}"]`).classList.add('tab-active');
+                
+                const titles = {'upload': 'Data & Files Management', 'dashboard': 'Dashboard Insights', 'action-center': 'Action Center', 'batch-health': 'Batch Health Analytics', 'queries': 'Query Analytics', 'learners': 'Learner Search', 'data-quality': 'Data Quality Center'};
+                document.getElementById('page-title').innerText = titles[viewId] || '';
+                document.getElementById('main-scroll').scrollTop = 0;
+            },
+            
+            log(msg, type='info') {
+                const colors = { info: 'text-blue-400', warn: 'text-amber-400', err: 'text-red-400', success: 'text-emerald-400'};
+                this.state.logs.push({msg, type, time: new Date().toLocaleTimeString()});
+                const container = document.getElementById('error-log-container');
+                if(container) { container.innerHTML = this.state.logs.map(l => `<div class="mb-1.5 pb-1.5 border-b border-slate-800"><span class="text-slate-500 mr-2">[${l.time}]</span> <span class="${colors[l.type]} font-bold mr-2">[${l.type.toUpperCase()}]</span> ${l.msg}</div>`).join(''); container.scrollTop = container.scrollHeight; }
+            },
+
+            // --- File Processing ---
+            async handleFileUpload(event, type) {
+                const files = event.target.files;
+                if (!files.length) return;
+                document.getElementById('upload-loader').classList.remove('hide');
+                
+                let successCount = 0;
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    this.log(`Reading: ${file.name}`, 'info');
+                    try {
+                        const data = await this.readFile(file);
+                        await LocalDB.saveFile(file.name, type, data);
+                        this.log(`Saved ${file.name} to Database`, 'success');
+                        successCount++;
+                    } catch (e) { this.log(`Error reading ${file.name}: ${e.message}`, 'err'); Toast.show(`Failed to parse ${file.name}`, 'error');}
+                }
+                document.getElementById('upload-loader').classList.add('hide');
+                event.target.value = ''; 
+                if(successCount > 0) Toast.show(`Successfully imported ${successCount} file(s)`, 'success');
+                await this.loadFromDB(); 
+            },
+
+            readFile(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const workbook = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
+                            // FIX: Using raw: false enables SheetJS to read formatted text outputs, keeping strings clean
+                            const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {defval: "", raw: false});
+                            resolve(json.map(row => {
+                                let newRow = { _sourceFile: file.name };
+                                for (let key in row) newRow[key.trim().toLowerCase()] = row[key];
+                                return newRow;
+                            }));
+                        } catch (err) { reject(err); }
+                    };
+                    reader.onerror = (err) => reject(err);
+                    reader.readAsArrayBuffer(file);
+                });
+            },
+
+            // --- Database Management ---
+            renderFileManager() {
+                const tbody = document.getElementById('file-manager-body');
+                if(this.state.storedFilesInfo.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="3" class="px-5 py-8 text-center text-slate-400 italic">No datasets secured in local storage. Upload files above.</td></tr>`;
+                    return;
+                }
+                tbody.innerHTML = this.state.storedFilesInfo.map(f => `
+                    <tr class="hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors group">
+                        <td class="px-5 py-3 font-semibold text-slate-700 dark:text-slate-200"><i class="fas fa-file-excel text-emerald-500 mr-3"></i>${f.name}</td>
+                        <td class="px-5 py-3"><span class="bg-slate-200 dark:bg-slate-700 text-xs font-bold px-2.5 py-1 rounded-md uppercase tracking-wider text-slate-600 dark:text-slate-300">${f.type}</span> <span class="text-slate-500 text-xs ml-3">${f.rows} rows</span></td>
+                        <td class="px-5 py-3 text-right"><button onclick="app.deleteSpecificFile('${f.name}')" class="text-slate-400 hover:text-red-500 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-red-200 px-3 py-1.5 rounded-lg shadow-sm transition-all text-xs font-bold"><i class="fas fa-trash-alt mr-1"></i> Delete</button></td>
+                    </tr>
+                `).join('');
+            },
+            
+            async deleteSpecificFile(filename) {
+                if(!confirm(`Delete dataset '${filename}'? This cannot be undone.`)) return;
+                await LocalDB.deleteFile(filename);
+                this.log(`Deleted ${filename}`, 'warn');
+                Toast.show(`Deleted ${filename}`, 'success');
+                this.resetState(); await this.loadFromDB();
+            },
+            
+            async clearDatabase() {
+                if(!confirm("CRITICAL WARNING: This will completely wipe all saved datasets from your browser. Continue?")) return;
+                await LocalDB.clearAll();
+                this.log("Database wiped completely.", "err");
+                Toast.show('Database wiped clean.', 'warning');
+                this.resetState(); await this.loadFromDB();
+                document.querySelectorAll('.nav-btn').forEach(b => { if(b.getAttribute('data-target') !== 'upload') b.classList.add('pointer-events-none', 'opacity-50'); });
+                document.getElementById('export-btn').classList.add('hide');
+            },
+            
+            resetState() {
+                this.state.learners = {}; this.state.batches = {}; this.state.programs = {}; 
+                this.state.queryStats = { total: 0, open: 0, closed: 0, categories: {} }; 
+                this.state.metadata = { filesProcessed: 0, duplicates: 0, rows: 0 };
+            },
+
+            // --- Processing Core (Aggregations) ---
+            processData() {
+                this.resetState();
+                this.log("Starting data aggregation and analysis engine...", 'info');
+                
+                const num = (val) => {
+                    if (val === undefined || val === null || val === "") return 0;
+                    const clean = val.toString().replace(/[^0-9.-]+/g,"");
+                    let parsed = parseFloat(clean);
+                    return isNaN(parsed) ? 0 : parsed;
+                };
+                
+                // Helper to scale floating percentage decimals back to integers (0.85 -> 85)
+                const pct = (val) => {
+                    let parsed = num(val);
+                    if (parsed > 0 && parsed <= 1.0) return Math.round(parsed * 100);
+                    return Math.round(parsed);
+                };
+
+                const normalizeEmail = (e) => (e || "").toString().trim().toLowerCase();
+
+                // Process Batches
+                this.state.rawBatches.forEach((row, i) => {
+                    this.state.metadata.rows++;
+                    const email = normalizeEmail(row['email']);
+                    if (!email) return;
+
+                    if (this.state.learners[email]) this.state.metadata.duplicates++;
+                    else this.state.learners[email] = { queries: 0 };
+
+                    let learner = this.state.learners[email];
+                    learner.name = row['name'] || row['student name'] || "Unknown";
+                    learner.email = email;
+                    learner.batch = row['batch name'] || row['batch'] || "Unassigned";
+                    learner.program = row['program'] || "Unassigned";
+                    learner.ck = num(row['codekata submission']);
+                    learner.wk = num(row['webkata submission']);
+                    
+                    // FIX: Decimals auto-scaled to integer percent bounds
+                    learner.att = pct(row['attendance percentage']);
+                    learner.taskPer = pct(row['task score percentage']) || pct(row['task completion']);
+                    learner.miniPer = pct(row['% of mini project score']) || pct(row['mini project completion']);
+                    learner.finalPer = pct(row['final project completion %']);
+                    
+                    learner.completion = Math.round((learner.taskPer + learner.miniPer + learner.finalPer) / 3);
+
+                    // FIX: Re-ordered conditions sequentially based on clear priority criteria
+                    if (learner.completion < 10) {
+                        learner.segment = "Not Started";
+                    } else if (learner.completion < 30 || learner.ck < 50) {
+                        learner.segment = "At Risk";
+                    } else if (learner.ck >= 250 && learner.miniPer >= 100 && learner.finalPer >= 100) {
+                        learner.segment = "Placement Ready";
+                    } else if (learner.completion >= 80) {
+                        learner.segment = "Near Completion";
+                    } else {
+                        learner.segment = "In Progress";
+                    }
+
+                    learner.priority = "None"; learner.reason = "";
+                    if (learner.segment === "Not Started") { learner.priority = "High"; learner.reason = "Completion < 10%"; }
+                    else if (learner.segment === "At Risk") { learner.priority = "High"; learner.reason = learner.ck < 50 ? "Critically low CodeKata" : "Low Overall Completion (<30%)"; }
+                    else if (learner.segment === "In Progress" && learner.miniPer === 0 && learner.taskPer > 50) { learner.priority = "Medium"; learner.reason = "Stuck on Mini Project"; }
+                });
+
+                // Global Query Baseline & Mentor Extraction
+                let uniqueMentors = new Set();
+                this.state.rawQueries.forEach(row => {
+                    const email = normalizeEmail(row['email']);
+                    if (email && this.state.learners[email]) this.state.learners[email].queries++;
+                    
+                    let mentor = (row['assigned to'] || "").trim();
+                    if(mentor) uniqueMentors.add(mentor);
+                });
+
+                // Batch & Program Aggregation
+                Object.values(this.state.learners).forEach(l => {
+                    if (!this.state.batches[l.batch]) this.state.batches[l.batch] = { count: 0, compSum: 0, attSum: 0, ckSum: 0, prCount: 0, riskCount: 0 };
+                    let b = this.state.batches[l.batch];
+                    b.count++; b.compSum += l.completion; b.attSum += l.att; b.ckSum += l.ck;
+                    if(l.segment === "Placement Ready") b.prCount++;
+                    if(l.segment === "At Risk" || l.segment === "Not Started") b.riskCount++;
+
+                    if (!this.state.programs[l.program]) this.state.programs[l.program] = { count: 0 };
+                    this.state.programs[l.program].count++;
+                });
+
+                // Populate Query Mentor Dropdown
+                const mentorSelect = document.getElementById('query-mentor-select');
+                if(mentorSelect) {
+                    while(mentorSelect.options.length > 1) mentorSelect.remove(1);
+                    Array.from(uniqueMentors).sort().forEach(m => mentorSelect.add(new Option(m, m)));
+                }
+
+                this.log("Data processing complete. Dashboard generated.", 'success');
+                Toast.show("Dashboard generated successfully", "success");
+                this.state.metadata.filesProcessed = this.state.storedFilesInfo.length;
+                
+                // Switch view first before charting to allow accurate client bounding boxes
+                this.switchView('dashboard');
+                
+                setTimeout(() => {
+                    this.updateUI();
+                    this.renderQueryView('ALL'); 
+                }, 50);
+            },
+
+            // --- UI Rendering ---
+            updateUI() {
+                const lArr = Object.values(this.state.learners);
+                const total = lArr.length;
+                if (total === 0) { Toast.show("No valid learners found in data", "error"); return; }
+
+                let segCount = { "Placement Ready": 0, "Near Completion": 0, "In Progress": 0, "At Risk": 0, "Not Started": 0 };
+                let totalComp = 0;
+                lArr.forEach(l => { segCount[l.segment]++; totalComp += l.completion; });
+
+                const avgComp = total > 0 ? Math.round(totalComp / total) : 0;
+                document.getElementById('kpi-container').innerHTML = [
+                    {label: "Total Learners", val: total, color: "blue", icon: "users"}, {label: "Placement Ready", val: segCount["Placement Ready"], color: "emerald", icon: "check-circle"},
+                    {label: "Near Completion", val: segCount["Near Completion"], color: "teal", icon: "arrow-up"}, {label: "In Progress", val: segCount["In Progress"], color: "indigo", icon: "spinner"},
+                    {label: "At Risk", val: segCount["At Risk"], color: "rose", icon: "exclamation-circle"}, {label: "Not Started", val: segCount["Not Started"], color: "slate", icon: "pause-circle"},
+                    {label: "Total Queries Active", val: this.state.rawQueries.length, color: "purple", icon: "comments"}, {label: "Avg Cohort Completion", val: `${avgComp}%`, color: "cyan", icon: "chart-bar"}
+                ].map(k => `
+                    <div class="glass p-5 rounded-xl border-t-4 border-${k.color}-500 shadow-sm flex items-center justify-between hover:shadow-md transform hover:-translate-y-1 transition-all">
+                        <div><p class="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-1">${k.label}</p><h3 class="text-3xl font-black text-slate-800 dark:text-slate-100 tracking-tight">${k.val}</h3></div>
+                        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-${k.color}-100 to-white dark:from-${k.color}-900/40 dark:to-slate-800 text-${k.color}-600 dark:text-${k.color}-400 flex items-center justify-center text-xl shadow-inner border border-${k.color}-100 dark:border-${k.color}-800/30"><i class="fas fa-${k.icon}"></i></div>
+                    </div>`).join('');
+
+                document.getElementById('dq-files').innerText = this.state.metadata.filesProcessed;
+                document.getElementById('dq-learners').innerText = total; 
+                document.getElementById('dq-programs').innerText = Object.keys(this.state.programs).length;
+                document.getElementById('dq-duplicates').innerText = this.state.metadata.duplicates;
+
+                this.renderCharts(segCount);
+                this.renderTables(lArr);
+                this.populateFilters();
+            },
+
+            renderCharts(segCountObj) {
+                const tc = this.state.isDarkMode ? '#cbd5e1' : '#475569';
+                const gridColor = this.state.isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+                const lArr = Object.values(this.state.learners);
+                
+                const makeChart = (id, type, data, options = {}) => {
+                    if (this.state.charts[id]) this.state.charts[id].destroy();
+                    const ctx = document.getElementById(id); if(!ctx) return;
+                    
+                    const baseOpts = { 
+                        responsive: true, maintainAspectRatio: false, 
+                        plugins: { legend: { labels: { color: tc, font: {family: "'Inter', sans-serif"} } }, ...(options.plugins||{})},
+                        animation: { duration: 800, easing: 'easeOutQuart' }
+                    };
+                    
+                    if (type === 'bar' || type === 'scatter') {
+                        baseOpts.scales = {
+                            x: { ticks: { color: tc }, grid: { color: gridColor }, ...(options.scales?.x||{}) },
+                            y: { ticks: { color: tc }, grid: { color: gridColor }, ...(options.scales?.y||{}) }
+                        };
+                    }
+                    this.state.charts[id] = new Chart(ctx, { type, data, options: {...baseOpts, ...options} });
+                };
+
+                if (!segCountObj) { segCountObj = { "Placement Ready": 0, "Near Completion": 0, "In Progress": 0, "At Risk": 0, "Not Started": 0 }; lArr.forEach(l => segCountObj[l.segment]++); }
+
+                makeChart('chart-placement', 'doughnut', { labels: ['Placement Ready', 'In Training'], datasets: [{ data: [segCountObj["Placement Ready"], lArr.length - segCountObj["Placement Ready"]], backgroundColor: ['#10b981', this.state.isDarkMode ? '#334155' : '#e2e8f0'], borderWidth: 0 }] }, { cutout: '75%' });
+                makeChart('chart-segmentation', 'pie', { labels: Object.keys(segCountObj), datasets: [{ data: Object.values(segCountObj), backgroundColor: ['#10b981', '#14b8a6', '#3b82f6', '#f43f5e', '#64748b'], borderWidth: 2, borderColor: this.state.isDarkMode ? '#1e293b' : '#ffffff' }] });
+                
+                const progKeys = Object.keys(this.state.programs).sort((a,b) => this.state.programs[b].count - this.state.programs[a].count).slice(0,5);
+                const progVals = progKeys.map(k => this.state.programs[k].count);
+                makeChart('chart-program-dist', 'doughnut', { labels: progKeys, datasets: [{ data: progVals, backgroundColor: ['#8b5cf6', '#ec4899', '#f59e0b', '#0ea5e9', '#64748b'], borderWidth: 2, borderColor: this.state.isDarkMode ? '#1e293b' : '#ffffff' }] }, { cutout: '60%' });
+                
+                const colorMap = {'Placement Ready':'#10b981', 'Near Completion':'#14b8a6', 'In Progress':'#3b82f6', 'At Risk':'#f43f5e', 'Not Started':'#64748b'};
+                const scatterDatasets = Object.keys(segCountObj).map(segment => ({
+                    label: segment, backgroundColor: colorMap[segment] || '#94a3b8',
+                    data: lArr.filter(l => l.segment === segment).map(l => ({x: l.att, y: l.completion})),
+                    pointRadius: 4, pointHoverRadius: 6
+                }));
+                makeChart('chart-attendance-scatter', 'scatter', { datasets: scatterDatasets }, { scales: { x: { title: {display: true, text: 'Attendance %', color: tc}, min: 0, max: 100 }, y: { title: {display: true, text: 'Completion %', color: tc}, min: 0, max: 100 } }});
+
+                const sortedBatches = Object.entries(this.state.batches).map(([name, b]) => ({ name, avg: Math.round(b.compSum / b.count) })).sort((a,b) => b.avg - a.avg).slice(0, 10);
+                makeChart('chart-batch-completion', 'bar', { labels: sortedBatches.map(b => b.name), datasets: [{ label: 'Avg Completion %', data: sortedBatches.map(b => b.avg), backgroundColor: '#3b82f6', borderRadius: 4 }] });
+
+                let ckBuckets = [0,0,0,0,0]; lArr.forEach(l => { if(l.ck<=50) ckBuckets[0]++; else if(l.ck<=100) ckBuckets[1]++; else if(l.ck<=200) ckBuckets[2]++; else if(l.ck<=300) ckBuckets[3]++; else ckBuckets[4]++; });
+                makeChart('chart-codekata', 'bar', { labels: ['0-50', '51-100', '101-200', '201-300', '300+'], datasets: [{ label: 'Learners Volume', data: ckBuckets, backgroundColor: '#8b5cf6', borderRadius: 4 }] });
+            },
+
+            renderQueryView(mentorFilter = 'ALL') {
+                const select = document.getElementById('query-mentor-select');
+                if (select) {
+                    let optExists = Array.from(select.options).some(o => o.value.toLowerCase() === mentorFilter.toLowerCase());
+                    if(optExists) select.value = Array.from(select.options).find(o => o.value.toLowerCase() === mentorFilter.toLowerCase()).value;
+                }
+
+                const normalizedFilter = mentorFilter.toLowerCase();
+                let qTotal = 0, qOpen = 0, qClosed = 0;
+                let qCats = {}; let qRaisers = {}; let qMentors = {};
+
+                this.state.rawQueries.forEach(row => {
+                    const m = (row['assigned to'] || "Unassigned").trim();
+                    const email = (row['email'] || "").toString().trim().toLowerCase();
+                    const isClosed = (row['status'] || "").toLowerCase().includes('close');
+                    const cat = row['category'] || "Uncategorized";
+
+                    if (mentorFilter === 'ALL' || m.toLowerCase() === normalizedFilter) {
+                        qTotal++;
+                        if (isClosed) qClosed++; else qOpen++;
+                        qCats[cat] = (qCats[cat] || 0) + 1;
+                        if (email) qRaisers[email] = (qRaisers[email] || 0) + 1;
+
+                        if (m !== "Unassigned" && m !== "") {
+                            if (!qMentors[m]) qMentors[m] = {total: 0, open: 0};
+                            qMentors[m].total++;
+                            if (!isClosed) qMentors[m].open++;
+                        }
+                    }
+                });
+
+                const totalL = Object.keys(this.state.learners).length;
+                document.getElementById('query-kpi-container').innerHTML = [
+                    {lbl: mentorFilter === 'ALL' ? "Total Raised" : "Assigned Queries", val: qTotal, col: "blue"}, 
+                    {lbl: "Open Queries", val: qOpen, col: "amber"},
+                    {lbl: "Closed Queries", val: qClosed, col: "emerald"}, 
+                    {lbl: mentorFilter === 'ALL' ? "Avg Per Learner" : "Avg Per Assigned", val: totalL > 0 ? (qTotal/totalL).toFixed(2) : 0, col: "purple"}
+                ].map(k => `<div class="glass p-5 rounded-xl border-t-4 border-${k.col}-500 text-center shadow-sm hover:shadow-md transition-shadow"><p class="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-1">${k.lbl}</p><h3 class="text-3xl font-black text-slate-800 dark:text-slate-100">${k.val}</h3></div>`).join('');
+
+                const tc = this.state.isDarkMode ? '#cbd5e1' : '#475569';
+                const gridColor = this.state.isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+                const makeChart = (id, type, data, options = {}) => {
+                    if (this.state.charts[id]) this.state.charts[id].destroy();
+                    const ctx = document.getElementById(id); if(!ctx) return;
+                    const baseOpts = { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: tc, font: {family: "'Inter', sans-serif"} } }, ...(options.plugins||{})}, animation: { duration: 800, easing: 'easeOutQuart' }};
+                    if (type === 'bar') { baseOpts.scales = { x: { ticks: { color: tc }, grid: { color: gridColor }, ...(options.scales?.x||{}) }, y: { ticks: { color: tc }, grid: { color: gridColor }, ...(options.scales?.y||{}) } }; }
+                    this.state.charts[id] = new Chart(ctx, { type, data, options: {...baseOpts, ...options} });
+                };
+
+                const sortedCats = Object.entries(qCats).sort((a,b)=>b[1]-a[1]).slice(0,8);
+                makeChart('chart-query-category', 'bar', { labels: sortedCats.map(c=>c[0]), datasets: [{ label: 'Total Queries', data: sortedCats.map(c=>c[1]), backgroundColor: '#ec4899', borderRadius: 4 }] }, { indexAxis: 'y' });
+                
+                const sortedMentors = Object.entries(qMentors).map(([name, stat]) => ({name, count: stat.total})).sort((a,b)=>b.count - a.count).slice(0,10);
+                makeChart('chart-mentor-load', 'bar', { labels: sortedMentors.map(m=>m.name.split(' ')[0]), datasets: [{ label: 'Queries Assigned', data: sortedMentors.map(m=>m.count), backgroundColor: '#f59e0b', borderRadius: 4 }] });
+
+                const topRaisersArr = Object.entries(qRaisers).map(([email, count]) => {
+                    const l = this.state.learners[email] || { name: "Unknown", batch: "Unknown", program: "Unknown", email };
+                    return { ...l, qCount: count };
+                }).sort((a,b) => b.qCount - a.qCount).slice(0, 50);
+
+                const tr = (html, onclick='') => `<tr class="hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors cursor-pointer group" ${onclick}>${html}</tr>`;
+                const td = (html, cls='') => `<td class="px-5 py-3.5 whitespace-nowrap ${cls}">${html}</td>`;
+                
+                if (topRaisersArr.length === 0) {
+                    document.getElementById('table-top-queries').innerHTML = `<tr><td colspan="3" class="px-5 py-12 text-center text-slate-500 italic"><i class="fas fa-check-circle text-4xl block mb-3 text-emerald-500 opacity-50"></i>No queries found for this filter.</td></tr>`;
+                } else {
+                    document.getElementById('table-top-queries').innerHTML = topRaisersArr.map(l => tr(td(`<div class="font-bold text-slate-800 dark:text-slate-100">${l.name}</div><div class="text-[11px] text-slate-500 uppercase tracking-wider">${l.batch}</div>`) + td(`<span class="text-xs bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded border border-slate-200 dark:border-slate-700">${l.program}</span>`) + td(l.qCount, 'text-right font-black text-purple-600 dark:text-purple-400 text-lg'), `onclick="app.openModal('${l.email}')"`)).join('');
+                }
+            },
+
+            renderTables(lArr) {
+                const tr = (html, onclick='') => `<tr class="hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors cursor-pointer group" ${onclick}>${html}</tr>`;
+                const td = (html, cls='') => `<td class="px-5 py-3.5 whitespace-nowrap ${cls}">${html}</td>`;
+                const lClick = (email) => `onclick="app.openModal('${email}')"`;
+                const priorityBadge = (p) => `<span class="px-2.5 py-1 rounded text-[10px] uppercase tracking-wider font-bold ${p==='High'?'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-400 border border-red-200 dark:border-red-800/50':'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800/50'}">${p}</span>`;
+
+                document.getElementById('table-near-completion').innerHTML = lArr.filter(l => l.segment === 'Near Completion').sort((a,b) => b.completion - a.completion).slice(0,20).map(l => tr(td(`<div class="font-bold text-slate-800 dark:text-slate-100">${l.name}</div><div class="text-xs text-slate-500 font-medium">${l.batch}</div>`) + td(`${l.completion}%`, 'text-right font-black text-teal-600 dark:text-teal-400'), lClick(l.email))).join('');
+                
+                this.renderBatchRiskTable('ALL');
+
+                document.getElementById('tbody-action-center').innerHTML = lArr.filter(l => l.priority !== "None").sort((a,b) => (b.priority==='High'?2:1) - (a.priority==='High'?2:1)).map(l => tr(td(`<div class="font-bold text-slate-800 dark:text-slate-100">${l.name}</div><div class="text-xs text-slate-500">${l.email}</div>`) + td(`<span class="text-xs font-semibold px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300">${l.batch}</span>`) + td(priorityBadge(l.priority)) + td(l.reason, 'text-red-600 dark:text-red-400 text-xs font-bold') + td(`<button class="text-blue-600 hover:text-blue-800 font-semibold text-xs transition-colors"><i class="fas fa-external-link-alt"></i></button>`, 'text-right'), lClick(l.email))).join('');
+
+                const batchArr = Object.entries(this.state.batches).map(([name, b]) => ({ name, count: b.count, avgComp: Math.round(b.compSum/b.count), avgAtt: Math.round(b.attSum/b.count), avgCk: Math.round(b.ckSum/b.count), pr: b.prCount, risk: b.riskCount })).sort((a,b) => b.avgComp - a.avgComp);
+                document.getElementById('tbody-batch-health').innerHTML = batchArr.map(b => tr(td(`<span class="font-bold text-slate-800 dark:text-slate-100">${b.name}</span>`) + td(b.count, 'text-center font-medium') + td(`<span class="font-black ${b.avgComp>75?'text-emerald-600 dark:text-emerald-400':b.avgComp<40?'text-red-600 dark:text-red-400':''}">${b.avgComp}%</span>`, 'text-center') + td(`${b.avgAtt}%`, 'text-center text-slate-600 dark:text-slate-300') + td(b.avgCk, 'text-center font-medium') + td(b.pr, 'text-center text-emerald-600 dark:text-emerald-400 font-bold') + td(b.risk, 'text-center text-red-600 dark:text-red-400 font-bold'))).join('');
+
+                this.filterLearners(); 
+            },
+
+            renderBatchRiskTable(batch) {
+                const lArr = Object.values(this.state.learners);
+                let filtered = lArr.filter(l => l.segment === 'At Risk' || l.segment === 'Not Started');
+                if (batch !== 'ALL') filtered = filtered.filter(l => l.batch === batch);
+                filtered.sort((a, b) => a.completion - b.completion);
+                
+                const tableEl = document.getElementById('table-at-risk');
+                if (filtered.length === 0) {
+                    tableEl.innerHTML = `<tr><td class="p-8 text-center text-slate-500 text-sm"><i class="fas fa-shield-alt text-4xl mb-3 text-emerald-500 block opacity-50"></i>No at-risk learners found in this filter.</td></tr>`;
+                    return;
+                }
+                
+                const tr = (html, onclick='') => `<tr class="hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors cursor-pointer group" ${onclick}>${html}</tr>`;
+                const td = (html, cls='') => `<td class="px-5 py-3 whitespace-nowrap ${cls}">${html}</td>`;
+                tableEl.innerHTML = filtered.slice(0, 50).map(l => tr(td(`<div class="font-bold text-slate-800 dark:text-slate-100">${l.name}</div><div class="text-xs text-slate-500">${batch==='ALL'?l.batch:l.email}</div>`) + td(`${l.completion}%`, 'text-right font-black text-red-600 dark:text-red-400'), `onclick="app.openModal('${l.email}')"`)).join('');
+            },
+
+            populateFilters() {
+                const addOptions = (id, dataObj) => {
+                    const select = document.getElementById(id);
+                    while(select.options.length > 1) select.remove(1);
+                    Object.keys(dataObj).sort().forEach(k => {
+                        const opt = document.createElement('option'); opt.value = k; opt.text = k; select.add(opt);
+                    });
+                };
+                addOptions('filter-program', this.state.programs);
+                addOptions('filter-batch', this.state.batches);
+                
+                const segs = ['Placement Ready', 'Near Completion', 'In Progress', 'At Risk', 'Not Started'];
+                const segSelect = document.getElementById('filter-segment');
+                while(segSelect.options.length > 1) segSelect.remove(1);
+                segs.forEach(s => { const opt = document.createElement('option'); opt.value = s; opt.text = s; segSelect.add(opt); });
+                
+                const riskSel = document.getElementById('risk-batch-select');
+                while(riskSel.options.length > 0) riskSel.remove(0);
+                riskSel.add(new Option('All Batches', 'ALL'));
+                Object.keys(this.state.batches).sort().forEach(b => riskSel.add(new Option(b, b)));
+            },
+
+            filterLearners() {
+                const query = document.getElementById('search-input').value.toLowerCase().trim();
+                const prog = document.getElementById('filter-program').value;
+                const batch = document.getElementById('filter-batch').value;
+                const seg = document.getElementById('filter-segment').value;
+                
+                let filtered = Object.values(this.state.learners);
+                const totalSystemCount = filtered.length;
+                
+                if (query.length > 0) filtered = filtered.filter(l => l.name.toLowerCase().includes(query) || l.email.toLowerCase().includes(query));
+                if (prog !== 'ALL') filtered = filtered.filter(l => l.program === prog);
+                if (batch !== 'ALL') filtered = filtered.filter(l => l.batch === batch);
+                if (seg !== 'ALL') filtered = filtered.filter(l => l.segment === seg);
+
+                const counterEl = document.getElementById('search-counter');
+                const isFiltered = query.length > 0 || prog !== 'ALL' || batch !== 'ALL' || seg !== 'ALL';
+                
+                if (!isFiltered && filtered.length > 200) {
+                    this.renderLearnersTable(filtered.slice(0, 200));
+                    if(counterEl) counterEl.innerHTML = `<span class="text-blue-600 dark:text-blue-400">Showing 200</span> of ${totalSystemCount}`;
+                } else {
+                    this.renderLearnersTable(filtered);
+                    if(counterEl) counterEl.innerHTML = `<span class="text-blue-600 dark:text-blue-400">Found ${filtered.length}</span> learners`;
+                }
+            },
+
+            renderLearnersTable(arr) {
+                const segmentBadge = (seg) => {
+                    const colors = {'Placement Ready':'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800', 'Near Completion':'bg-teal-100 text-teal-800 border-teal-200 dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-800', 'In Progress':'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800', 'At Risk':'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800', 'Not Started':'bg-slate-200 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'};
+                    return `<span class="px-2.5 py-1 rounded border text-[10px] uppercase font-bold tracking-wider ${colors[seg]} shadow-sm inline-block">${seg}</span>`;
+                };
+
+                const tbody = document.getElementById('tbody-learners');
+                if(arr.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="5" class="px-5 py-12 text-center text-slate-500"><i class="fas fa-search text-3xl mb-3 block opacity-30"></i> No learners match the current search filters.</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = arr.map(l => `
+                    <tr class="hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-all cursor-pointer group hover:shadow-sm" onclick="app.openModal('${l.email}')">
+                        <td class="px-5 py-4 whitespace-nowrap"><div class="font-bold text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">${l.name}</div><div class="text-[11px] text-slate-500 font-medium">${l.email}</div></td>
+                        <td class="px-5 py-4 whitespace-nowrap"><div class="text-sm font-semibold text-slate-700 dark:text-slate-300">${l.program}</div><div class="text-[11px] text-slate-500 uppercase tracking-wider">${l.batch}</div></td>
+                        <td class="px-5 py-4 whitespace-nowrap">${segmentBadge(l.segment)}</td>
+                        <td class="px-5 py-4 whitespace-nowrap text-center"><div class="flex flex-col items-center gap-1"><span class="font-black text-slate-700 dark:text-slate-200">${l.completion}%</span><div class="w-16 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden shadow-inner"><div class="h-1.5 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full" style="width: ${l.completion}%"></div></div></div></td>
+                        <td class="px-5 py-4 whitespace-nowrap text-center"><div class="font-bold text-purple-600 dark:text-purple-400">${l.ck}</div><div class="text-[10px] text-slate-400 font-medium">WK: ${l.wk}</div></td>
+                    </tr>
+                `).join('');
+            },
+
+            // --- Modal & Exports ---
+            openModal(email) {
+                const l = this.state.learners[email];
+                if(!l) return;
+                
+                const modal = document.getElementById('modal-360');
+                const box = document.getElementById('modal-content-box');
+                
+                document.getElementById('modal-avatar').innerText = l.name.charAt(0).toUpperCase();
+                document.getElementById('modal-name').innerText = l.name; 
+                document.getElementById('modal-email').innerText = l.email;
+                document.getElementById('modal-program').innerText = l.program;
+                document.getElementById('modal-batch').innerText = l.batch;
+                
+                const sc = {'Placement Ready':'bg-emerald-500', 'Near Completion':'bg-teal-500', 'In Progress':'bg-blue-500', 'At Risk':'bg-red-500', 'Not Started':'bg-slate-600'}[l.segment] || 'bg-slate-500';
+                document.getElementById('modal-segment').className = `px-2.5 py-1 rounded text-[10px] font-black text-white shadow-sm uppercase tracking-wider ${sc}`;
+                document.getElementById('modal-segment').innerText = l.segment;
+                
+                document.getElementById('modal-completion').innerText = `${l.completion}%`;
+                document.getElementById('modal-ck').innerText = l.ck; 
+                document.getElementById('modal-wk').innerText = l.wk; 
+                document.getElementById('modal-att').innerText = `${l.att}%`; 
+                document.getElementById('modal-queries').innerText = l.queries;
+
+                ['task', 'mini', 'final'].forEach(id => document.getElementById(`modal-${id}-bar`).style.width = '0%');
+                
+                modal.classList.remove('hide');
+                void modal.offsetWidth;
+                
+                modal.classList.replace('opacity-0', 'opacity-100');
+                box.classList.replace('scale-95', 'scale-100');
+
+                setTimeout(() => { 
+                    document.getElementById('modal-task-bar').style.width = `${l.taskPer}%`; 
+                    document.getElementById('modal-mini-bar').style.width = `${l.miniPer}%`; 
+                    document.getElementById('modal-final-bar').style.width = `${l.finalPer}%`; 
+                }, 100);
+                
+                document.getElementById('modal-task-val').innerText = `${l.taskPer}%`; 
+                document.getElementById('modal-mini-val').innerText = `${l.miniPer}%`; 
+                document.getElementById('modal-final-val').innerText = `${l.finalPer}%`;
+            },
+            
+            closeModal() { 
+                const modal = document.getElementById('modal-360');
+                const box = document.getElementById('modal-content-box');
+                modal.classList.replace('opacity-100', 'opacity-0');
+                box.classList.replace('scale-100', 'scale-95');
+                setTimeout(() => { modal.classList.add('hide'); }, 300);
+            },
+            
+            exportTable(tableId, filename) { 
+                XLSX.writeFile(XLSX.utils.table_to_book(document.getElementById(tableId), {sheet: "Data"}), `${filename}_${new Date().toISOString().split('T')[0]}.xlsx`); 
+                Toast.show('Data Exported Successfully', 'success');
+            },
+            
+            exportManagerSummary() {
+                if(Object.keys(this.state.learners).length === 0) { Toast.show('No data available to export', 'error'); return; }
+                Toast.show('Generating Comprehensive Report...', 'info');
+                
+                setTimeout(() => {
+                    const wb = XLSX.utils.book_new();
+                    const lArr = Object.values(this.state.learners);
+                    const bArr = Object.entries(this.state.batches);
+
+                    // 1. Dashboard Summary
+                    let segCount = { "Placement Ready": 0, "Near Completion": 0, "In Progress": 0, "At Risk": 0, "Not Started": 0 };
+                    lArr.forEach(l => segCount[l.segment]++);
+                    const dashData = [
+                        {"Metric": "Report Generated On", "Value": new Date().toLocaleString()},
+                        {"Metric": "Total Learners", "Value": lArr.length},
+                        {"Metric": "Total Active Batches", "Value": bArr.length},
+                        {"Metric": "Placement Ready", "Value": segCount["Placement Ready"]},
+                        {"Metric": "Near Completion", "Value": segCount["Near Completion"]},
+                        {"Metric": "In Progress", "Value": segCount["In Progress"]},
+                        {"Metric": "At Risk", "Value": segCount["At Risk"]},
+                        {"Metric": "Total Queries Active", "Value": this.state.rawQueries.length}
+                    ];
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dashData), "Executive_Summary");
+
+                    // 2. Batch Health
+                    const batchData = bArr.map(([name, b]) => ({
+                        "Batch": name, "Learners": b.count, "Avg Completion %": Math.round(b.compSum/b.count), "Avg Attendance %": Math.round(b.attSum/b.count),
+                        "Avg CodeKata": Math.round(b.ckSum/b.count), "Placement Ready": b.prCount, "At Risk": b.riskCount, "Risk Ratio": b.count > 0 ? `${Math.round((b.riskCount/b.count)*100)}%` : "0%"
+                    })).sort((a,b) => b["Avg Completion %"] - a["Avg Completion %"]);
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(batchData), "Batch_Health_Analytics");
+                    
+                    // 3. Program Analytics
+                    const programData = Object.entries(this.state.programs).map(([name, p]) => ({ "Program": name, "Total Learners Enrolled": p.count })).sort((a,b) => b["Total Learners Enrolled"] - a["Total Learners Enrolled"]);
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(programData), "Program_Distribution");
+
+                    // 4. Action Center
+                    const actionData = lArr.filter(l => l.priority !== "None").sort((a,b) => a.batch.localeCompare(b.batch) || (b.priority==='High'?2:1) - (a.priority==='High'?2:1))
+                        .map(l => ({ "Learner Name": l.name, "Email": l.email, "Program": l.program, "Batch": l.batch, "Priority": l.priority, "Reason for Intervention": l.reason, "Current Completion %": l.completion, "CodeKata": l.ck, "Attendance %": l.att }));
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(actionData), "Action_Plan_(At_Risk)");
+
+                    // 5. Query Analytics
+                    const queryFilter = document.getElementById('query-mentor-select')?.value || 'ALL';
+                    const activeMentorLabel = queryFilter === 'ALL' ? "All Mentors" : queryFilter;
+                    
+                    const normalizedFilter = queryFilter.toLowerCase();
+                    let qMentors = {}; let qCats = {}; let qRaisers = {};
+                    this.state.rawQueries.forEach(row => {
+                        const m = (row['assigned to'] || "Unassigned").trim();
+                        const email = (row['email'] || "").toString().trim().toLowerCase();
+                        if (queryFilter === 'ALL' || m.toLowerCase() === normalizedFilter) {
+                            qCats[row['category'] || "Uncategorized"] = (qCats[row['category'] || "Uncategorized"] || 0) + 1;
+                            if (email) qRaisers[email] = (qRaisers[email] || 0) + 1;
+                            if (m !== "Unassigned" && m !== "") {
+                                if (!qMentors[m]) qMentors[m] = {total: 0, open: 0};
+                                qMentors[m].total++;
+                            }
+                        }
+                    });
+
+                    const mentorData = Object.entries(qMentors).map(([name, stat]) => ({"Data Group": `Mentor Workload (Filter: ${activeMentorLabel})`, "Category / Person": name, "Detail": `Total Assigned: ${stat.total}`, "Sort Value": stat.total})).sort((a,b) => b["Sort Value"] - a["Sort Value"]);
+                    const categories = Object.entries(qCats).map(([cat, count]) => ({"Data Group": `Query Categories (Filter: ${activeMentorLabel})`, "Category / Person": cat, "Detail": `Volume: ${count}`, "Sort Value": count})).sort((a,b) => b["Sort Value"] - a["Sort Value"]);
+                    const topRaisers = Object.entries(qRaisers).map(([email, count]) => ({email, count})).sort((a,b) => b.count - a.count).slice(0,50).map(r => {
+                        const l = this.state.learners[r.email] || {name: "Unknown", batch: "Unknown"};
+                        return {"Data Group": `Top Query Raisers (Filter: ${activeMentorLabel})`, "Category / Person": l.name, "Detail": `Total Raised: ${r.count} (Batch: ${l.batch})`, "Sort Value": r.count};
+                    });
+
+                    const spacer = {"Data Group": "", "Category / Person": "", "Detail": "", "Sort Value": ""};
+                    const queryData = [...mentorData, spacer, ...categories, spacer, ...topRaisers].map(row => { delete row["Sort Value"]; return row; });
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(queryData), "Query_&_Mentor_Analytics");
+
+                    XLSX.writeFile(wb, `LSIP_Deep_Dive_Manager_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+                    Toast.show('Report Exported Successfully', 'success');
+                }, 500);
+            },
+
+            downloadErrorLog() {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(new Blob([this.state.logs.map(l => `[${l.time}] [${l.type.toUpperCase()}] ${l.msg}`).join('\n')], { type: 'text/plain' }));
+                a.download = `LSIP_System_Log_${new Date().getTime()}.txt`;
+                a.click();
+            }
+        };
+
+        window.addEventListener('DOMContentLoaded', () => app.init());
+    </script>
+</body>
+</html>
